@@ -18,9 +18,9 @@ struct Wall {
 std::list<Drop> drops;
 std::list<Wall> walls;
 
-#define R 0.1f  // radius
+#define R 0.05f // radius
 #define DT 0.03 // tick increment per frame
-#define FR 60  // framerate
+#define FR 60   // framerate
 #define G -1    // gravity strength (& direction)
 
 
@@ -64,8 +64,9 @@ void display() {
 }
 
 void do_collision(float mag, Drop& d1, Drop& d2) {
-    float dvx = (d1.x - d2.x) / (2 * R) * mag;
-    float dvy = (d1.y - d2.y) / (2 * R) * mag;
+#define DAMP 3 // damp=4 means they stick together
+    float dvx = (d1.x - d2.x) / (DAMP * R) * mag;
+    float dvy = (d1.y - d2.y) / (DAMP * R) * mag;
     printf("Initial pos: (%.1f, %.1f), (%.1f, %.1f)\n", d1.x, d1.y, d2.x, d2.y);
     printf("Initial vel: (%.1f, %.1f), (%.1f, %.1f)\n", d1.vx, d1.vy, d2.vx, d2.vy);
     printf("%.2f %.2f %.2f\n", mag, dvx, dvy);
@@ -87,13 +88,18 @@ void tick() {
     }
     gettimeofday(&last_idle_time, NULL);
 
+    float energy = 0;
+
     for (auto& d : drops) {
-        //printf("(%.1f, %.1f) going (%.1f, %.1f)\n", d.x, d.y, d.vx, d.vy);
+        energy += 0.5 * (d.vx * d.vx + d.vy * d.vy) - G * d.y;
+
+        // printf("(%.1f, %.1f) going (%.1f, %.1f)\n", d.x, d.y, d.vx, d.vy);
+        d.vy += DT * G / 2;
         d.x += DT * d.vx;
         d.y += DT * d.vy;
-        d.vy += DT * G;
+        d.vy += DT * G / 2;
 
-        for (auto & w : walls) {
+        for (auto& w : walls) {
             /*if (fabsf(d.x - w.x) < R + w.r) {
                 if (d.vy > 0 && d.y < w.y && w.y - d.y < R + w.r) {
                     printf("cw1\n");
@@ -134,15 +140,17 @@ void tick() {
             } else if (dy > 0 && dy > fdx && dvy < 0) {
                 printf("cw3\n");
                 d.vy = -d.vy;
+                d.vy -= G * DT; // hack to make the drops not fall through walls
             } else if (dy < 0 && -dy > fdx && dvy > 0) {
                 printf("cw4\n");
                 d.vy = -d.vy;
+                d.vy -= G * DT; // hack to make the drops not fall through walls
             } else {
                 // printf("cw ???\n");
             }
         }
 
-        for (auto & d2 : drops) {
+        for (auto& d2 : drops) {
             if (d2.x == d.x && d2.y == d.y)
                 continue;
 
@@ -175,6 +183,8 @@ void tick() {
             }
         }
     }
+
+    printf("System energy: %.2f\n", energy);
     glutPostRedisplay();
 }
 
@@ -188,6 +198,9 @@ int main(int argc, char** argv) {
     glutIdleFunc(tick);
 
     drops.push_back(Drop({.x = 0, .y = 0 }));
+    for (int i = 0; i < 9; i++) {
+        drops.push_back(Drop({.x = 0.25f * (i - 4), .y = 0.5, .vx = -0.1f * (i - 4), .vy = 0.3 }));
+    }
     drops.push_back(Drop({.x = 0.05, .y = 1 }));
 
     static const float W = 1.5f;
