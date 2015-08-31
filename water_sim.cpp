@@ -2,8 +2,8 @@
 #include <list>
 #include <sys/time.h>
 #include <unistd.h>
-#include <stdio.h>
-#include <math.h>
+#include <cstdio>
+#include <cmath>
 
 struct Drop {
     float x, y;
@@ -63,6 +63,8 @@ void display() {
     glFlush(); // Render now
 }
 
+#define MAX_INTERACT R
+
 void do_collision(float mag, Drop& d1, Drop& d2) {
 #define DAMP 3 // damp=4 means they stick together
     float dvx = (d1.x - d2.x) / (DAMP * R) * mag;
@@ -97,7 +99,6 @@ void tick() {
         d.vy += DT * G / 2;
         d.x += DT * d.vx;
         d.y += DT * d.vy;
-        d.vy += DT * G / 2;
 
         for (auto& w : walls) {
             /*if (fabsf(d.x - w.x) < R + w.r) {
@@ -149,6 +150,7 @@ void tick() {
                 // printf("cw ???\n");
             }
         }
+        d.vy += DT * G / 2;
 
         for (auto& d2 : drops) {
             if (d2.x == d.x && d2.y == d.y)
@@ -157,29 +159,50 @@ void tick() {
             float dx = d.x - d2.x;
             float dy = d.y - d2.y;
 
-            if (fabs(dx) > R + R || fabs(dy) > R + R)
+            if (fabs(dx) > R + R + MAX_INTERACT || fabs(dy) > R + R + MAX_INTERACT)
                 continue;
 
-            float dvx = d.vx - d2.vx;
-            float dvy = d.vy - d2.vy;
-            float fdx = fabs(dx);
-            float fdy = fabs(dy);
+            printf("(%f %f) (%f %f)\n", d.x, d.y, d2.x, d2.y);
 
-            printf("%.1f %.1f %.1f %.1f\n", dx, dy, dvx, dvy);
-            if (dx > 0 && dx > fdy && dvx < 0) {
-                printf("c1\n");
-                do_collision(-dvx, d, d2);
-            } else if (dx < 0 && -dx > fdy && dvx > 0) {
-                printf("c2\n");
-                do_collision(dvx, d, d2);
-            } else if (dy > 0 && dy > fdx && dvy < 0) {
-                printf("c3\n");
-                do_collision(-dvy, d, d2);
-            } else if (dy < 0 && -dy > fdx && dvy > 0) {
-                printf("c4\n");
-                do_collision(dvy, d, d2);
+            float dvx = 0;
+            float dvy = 0;
+#define TENSION 0.03
+#define RIGIDITY 100
+            if (dx > R + R || dx < -R - R) {
+                //dvx = -TENSION * R * dx / (R * R * R * R + (dx * dx) * (dx * dx));
+            } else if (dx > 0) {
+                printf("1\n");
+                dvx = (R + R - dx) * RIGIDITY;
             } else {
-                // printf("???\n");
+                printf("2\n");
+                dvx = (-R - R - dx) * RIGIDITY;
+            }
+            if (dy > R + R || dy < -R - R) {
+                //dvy = -TENSION * R * dy / (R * R * R * R + (dy * dy) * (dy * dy));
+            } else if (dy > 0) {
+                printf("3\n");
+                dvy = (R + R - dy) * RIGIDITY;
+            } else {
+                printf("4\n");
+                dvy = (-R - R - dy) * RIGIDITY;
+            }
+            dvx *= DT;
+            dvy *= DT;
+            printf("%f %f\n", dvx, dvy);
+
+            if (std::signbit(d.vx - d2.vx) == !std::signbit(dvx)) {
+                float f1 = d.vx - d2.vx;
+                d.vx += dvx;
+                d2.vx -= dvx;
+                float f2 = d.vx - d2.vx;
+                printf("vx: %f %f\n", f1, f2);
+            }
+            if (std::signbit(d.vy - d2.vy) == !std::signbit(dvy)) {
+                float f1 = d.vy - d2.vy;
+                d.vy += dvy;
+                d2.vy -= dvy;
+                float f2 = d.vy - d2.vy;
+                printf("vy: %f %f\n", f1, f2);
             }
         }
     }
@@ -198,10 +221,11 @@ int main(int argc, char** argv) {
     glutIdleFunc(tick);
 
     drops.push_back(Drop({.x = 0, .y = 0 }));
+    //drops.push_back(Drop({.x = 0.2, .y = 0 }));
     for (int i = 0; i < 9; i++) {
         drops.push_back(Drop({.x = 0.25f * (i - 4), .y = 0.5, .vx = -0.1f * (i - 4), .vy = 0.3 }));
     }
-    drops.push_back(Drop({.x = 0.05, .y = 1 }));
+    drops.push_back(Drop({.x = 0.08, .y = 1 }));
 
     static const float W = 1.5f;
     for (float x = -W; x <= W + 0.001; x += 0.25) {
