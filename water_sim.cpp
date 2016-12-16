@@ -18,11 +18,19 @@ struct Wall {
 std::list<Drop> drops;
 std::list<Wall> walls;
 
-#define R 0.05f // radius
+#define R 0.02f // radius
 #define DT 0.03 // tick increment per frame
 #define FR 60   // framerate
 #define G -1    // gravity strength (& direction)
 
+void drawCircle(float x, float y, float r) {
+    glBegin(GL_POLYGON);
+    for (int i = 0; i < 12; i++) {
+        float theta = 2 * 3.14159265 * i / 12;
+        glVertex2f(x + r * cosf(theta), y + r * sinf(theta));
+    }
+    glEnd();
+}
 
 /* Handler for window-repaint event. Call back when the window first appears and
    whenever the window needs to be re-painted. */
@@ -40,44 +48,30 @@ void display() {
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
 
-    glBegin(GL_QUADS);
 
     glColor3f(0.5f, 0.6f, 0.3f);
     for (const auto& w : walls) {
+        glBegin(GL_LINE_LOOP);
         glVertex2f(w.x - w.r, w.y - w.r); // x, y
         glVertex2f(w.x + w.r, w.y - w.r);
         glVertex2f(w.x + w.r, w.y + w.r);
         glVertex2f(w.x - w.r, w.y + w.r);
+        glEnd();
     }
 
     glColor3f(0.2f, 0.3f, 1.0f);
     for (const auto& d : drops) {
-        glVertex2f(d.x - R, d.y - R); // x, y
-        glVertex2f(d.x + R, d.y - R);
-        glVertex2f(d.x + R, d.y + R);
-        glVertex2f(d.x - R, d.y + R);
+        drawCircle(d.x, d.y, R);
+        //glVertex2f(d.x - R, d.y - R); // x, y
+        //glVertex2f(d.x + R, d.y - R);
+        //glVertex2f(d.x + R, d.y + R);
+        //glVertex2f(d.x - R, d.y + R);
     }
-
-    glEnd();
 
     glFlush(); // Render now
 }
 
 #define MAX_INTERACT R
-
-void do_collision(float mag, Drop& d1, Drop& d2) {
-#define DAMP 3 // damp=4 means they stick together
-    float dvx = (d1.x - d2.x) / (DAMP * R) * mag;
-    float dvy = (d1.y - d2.y) / (DAMP * R) * mag;
-    printf("Initial pos: (%.1f, %.1f), (%.1f, %.1f)\n", d1.x, d1.y, d2.x, d2.y);
-    printf("Initial vel: (%.1f, %.1f), (%.1f, %.1f)\n", d1.vx, d1.vy, d2.vx, d2.vy);
-    printf("%.2f %.2f %.2f\n", mag, dvx, dvy);
-    d1.vx += dvx;
-    d2.vx -= dvx;
-    d1.vy += dvy;
-    d2.vy -= dvy;
-    printf("Resulting vel: (%.1f, %.1f), (%.1f, %.1f)\n", d1.vx, d1.vy, d2.vx, d2.vy);
-}
 
 void tick() {
     static struct timeval last_idle_time;
@@ -87,6 +81,8 @@ void tick() {
     float dt = (float)(time_now.tv_sec - last_idle_time.tv_sec) + 1.0e-6 * (time_now.tv_usec - last_idle_time.tv_usec);
     if (dt < 1.0 / FR) {
         usleep(1000000 * (1.0 / FR - dt));
+        tick();
+        return;
     }
     gettimeofday(&last_idle_time, NULL);
 
@@ -126,6 +122,8 @@ void tick() {
 
             if (fabs(dx) > R + w.r || fabs(dy) > R + w.r)
                 continue;
+            if (fabs(dx) > w.r && fabs(dy) > w.r)
+                continue;
 
             float dvx = d.vx;
             float dvy = d.vy;
@@ -133,19 +131,23 @@ void tick() {
             float fdy = fabs(dy);
 
             if (dx > 0 && dx > fdy && dvx < 0) {
-                printf("cw1\n");
+                //printf("cw1\n");
                 d.vx = -d.vx;
+                d.x += DT * DT * (R + w.r - dx) * 500;
             } else if (dx < 0 && -dx > fdy && dvx > 0) {
-                printf("cw2\n");
+                //printf("cw2\n");
                 d.vx = -d.vx;
+                d.x -= DT * DT * (R + w.r + dx) * 500;
             } else if (dy > 0 && dy > fdx && dvy < 0) {
-                printf("cw3\n");
-                d.vy = -d.vy;
+                //printf("cw3\n");
+                d.vy = -d.vy * 0.95;
                 d.vy -= G * DT; // hack to make the drops not fall through walls
+                d.y += DT * DT * (R + w.r - dy) * 500;
             } else if (dy < 0 && -dy > fdx && dvy > 0) {
-                printf("cw4\n");
+                //printf("cw4\n");
                 d.vy = -d.vy;
                 d.vy -= G * DT; // hack to make the drops not fall through walls
+                d.y -= DT * DT * (R + w.r + dy) * 500;
             } else {
                 // printf("cw ???\n");
             }
@@ -159,13 +161,46 @@ void tick() {
             float dx = d.x - d2.x;
             float dy = d.y - d2.y;
 
-            if (fabs(dx) > R + R + MAX_INTERACT || fabs(dy) > R + R + MAX_INTERACT)
+            //if (fabs(dx) > R + R + MAX_INTERACT || fabs(dy) > R + R + MAX_INTERACT)
+                //continue;
+
+            float dsq = dx * dx + dy * dy;
+            if (dsq > 5 * R * R)
                 continue;
 
-            printf("(%f %f) (%f %f)\n", d.x, d.y, d2.x, d2.y);
+            //printf("(%f %f) (%f %f)\n", d.x, d.y, d2.x, d2.y);
 
+#define RIGIDITY 400
+#define TENSION 1
+#define FRICTION 0.02
+
+            float dvx, dvy;
+            if (dsq < 4 * R * R) {
+                float mag = 4 * R * R - dsq;
+                dvx = (d.x - d2.x) * mag * RIGIDITY;
+                dvy = (d.y - d2.y) * mag * RIGIDITY;
+            } else {
+                float mag = 4 * R * R - dsq;
+                //d.vx *= 0.999;
+                //d.vy *= 0.999;
+                //d2.vx *= 0.999;
+                //d2.vy *= 0.999;
+                dvx = (d.x - d2.x) * mag * TENSION;
+                dvy = (d.y - d2.y) * mag * TENSION;
+            }
+
+            dvx += FRICTION * (d2.vx - d.vx);
+            dvy += FRICTION * (d2.vy - d.vy);
+
+            d.vx += dvx;
+            d2.vx -= dvx;
+            d.vy += dvy;
+            d2.vy -= dvy;
+
+#if 0
             float dvx = 0;
             float dvy = 0;
+
 #define TENSION 0.03
 #define RIGIDITY 100
             if (dx > R + R || dx < -R - R) {
@@ -190,20 +225,21 @@ void tick() {
             dvy *= DT;
             printf("%f %f\n", dvx, dvy);
 
-            if (std::signbit(d.vx - d2.vx) == !std::signbit(dvx)) {
+            if (1) {
                 float f1 = d.vx - d2.vx;
                 d.vx += dvx;
                 d2.vx -= dvx;
                 float f2 = d.vx - d2.vx;
                 printf("vx: %f %f\n", f1, f2);
             }
-            if (std::signbit(d.vy - d2.vy) == !std::signbit(dvy)) {
+            if (1) {
                 float f1 = d.vy - d2.vy;
                 d.vy += dvy;
                 d2.vy -= dvy;
                 float f2 = d.vy - d2.vy;
                 printf("vy: %f %f\n", f1, f2);
             }
+#endif
         }
     }
 
@@ -220,14 +256,28 @@ int main(int argc, char** argv) {
     glutDisplayFunc(display);              // Register display callback handler for window re-paint
     glutIdleFunc(tick);
 
-    drops.push_back(Drop({.x = 0, .y = 0 }));
+#if 0
+    //drops.push_back(Drop({.x = 0, .y = 0 }));
     //drops.push_back(Drop({.x = 0.2, .y = 0 }));
-    for (int i = 0; i < 9; i++) {
-        drops.push_back(Drop({.x = 0.25f * (i - 4), .y = 0.5, .vx = -0.1f * (i - 4), .vy = 0.3 }));
+    for (int i = 0; i < 2; i++) {
+        drops.push_back(Drop({.x = 0.35f * (i - 2), .y = 0.5, .vx = -0.1f * (i - 4), .vy = 0.3 }));
     }
-    drops.push_back(Drop({.x = 0.08, .y = 1 }));
+    //drops.push_back(Drop({.x = 0.08, .y = 1 }));
+#else
+    //drops.push_back(Drop({.x = 0, .y = 0 }));
+    //drops.push_back(Drop({.x = 0.2, .y = 0 }));
+    int nx = 32;
+    int ny = 32;
+    for (int j = 0; j < ny; j++) {
+        for (int i = 0; i < nx; i++) {
+            drops.push_back(Drop({.x = 1.0f / nx * (i - nx / 2) - 0.6f, .y = 0.5f + .01f * i + 1.0f / ny * j, .vx = -0.0f - 0.2f / nx * (i - nx / 2), .vy = -0.3 }));
+        }
+    }
+    //drops.push_back(Drop({.x = 0.08, .y = 1 }));
+#endif
 
     static const float W = 1.5f;
+    walls.push_back(Wall({.x = -.4f, .y = -0.4, .r = 0.2}));
     for (float x = -W; x <= W + 0.001; x += 0.25) {
         walls.push_back(Wall({.x = x, .y = -1, .r = 0.25 }));
     }
