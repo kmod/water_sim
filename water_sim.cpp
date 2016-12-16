@@ -165,14 +165,14 @@ void tick() {
                 //continue;
 
             float dsq = dx * dx + dy * dy;
-            if (dsq > 5 * R * R)
+            if (dsq > 6 * R * R)
                 continue;
 
             //printf("(%f %f) (%f %f)\n", d.x, d.y, d2.x, d2.y);
 
-#define RIGIDITY 400
-#define TENSION 1
-#define FRICTION 0.02
+#define RIGIDITY (80 / R)
+#define TENSION 0.00001
+#define FRICTION 0.2
 
             float dvx, dvy;
             if (dsq < 4 * R * R) {
@@ -180,7 +180,8 @@ void tick() {
                 dvx = (d.x - d2.x) * mag * RIGIDITY;
                 dvy = (d.y - d2.y) * mag * RIGIDITY;
             } else {
-                float mag = 4 * R * R - dsq;
+                //float mag = 4 * R * R - dsq;
+                float mag = -1.0 / dsq;
                 //d.vx *= 0.999;
                 //d.vy *= 0.999;
                 //d2.vx *= 0.999;
@@ -267,17 +268,17 @@ int main(int argc, char** argv) {
     //drops.push_back(Drop({.x = 0, .y = 0 }));
     //drops.push_back(Drop({.x = 0.2, .y = 0 }));
     int nx = 32;
-    int ny = 32;
+    int ny = 52;
     for (int j = 0; j < ny; j++) {
         for (int i = 0; i < nx; i++) {
-            drops.push_back(Drop({.x = 1.0f / nx * (i - nx / 2) - 0.6f, .y = 0.5f + .01f * i + 1.0f / ny * j, .vx = -0.0f - 0.2f / nx * (i - nx / 2), .vy = -0.3 }));
+            drops.push_back(Drop({.x = 1.0f / nx * (i - nx / 2) - 0.6f, .y = 0.5f + .01f * i + 1.0f / ny * j, .vx = 1.5f + 0.2f / nx * (i - nx / 2), .vy = -0.3 }));
         }
     }
     //drops.push_back(Drop({.x = 0.08, .y = 1 }));
 #endif
 
     static const float W = 1.5f;
-    walls.push_back(Wall({.x = -.4f, .y = -0.4, .r = 0.2}));
+    walls.push_back(Wall({.x = .6f, .y = -0.3, .r = 0.2}));
     for (float x = -W; x <= W + 0.001; x += 0.25) {
         walls.push_back(Wall({.x = x, .y = -1, .r = 0.25 }));
     }
