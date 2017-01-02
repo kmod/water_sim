@@ -19,12 +19,13 @@ std::list<Drop> drops;
 std::list<Wall> walls;
 
 #define R 0.02f // radius
-#define DT 0.03 // tick increment per frame
+#define DT 0.01 // tick increment per frame
 #define FR 60   // framerate
 #define G -1    // gravity strength (& direction)
 
 void drawCircle(float x, float y, float r) {
-    glBegin(GL_POLYGON);
+    glBegin(GL_LINE_LOOP);
+    //glBegin(GL_POLYGON);
     for (int i = 0; i < 12; i++) {
         float theta = 2 * 3.14159265 * i / 12;
         glVertex2f(x + r * cosf(theta), y + r * sinf(theta));
@@ -132,20 +133,20 @@ void tick() {
 
             if (dx > 0 && dx > fdy && dvx < 0) {
                 //printf("cw1\n");
-                d.vx = -d.vx;
+                d.vx = -d.vx * 0.6;
                 d.x += DT * DT * (R + w.r - dx) * 500;
             } else if (dx < 0 && -dx > fdy && dvx > 0) {
                 //printf("cw2\n");
-                d.vx = -d.vx;
+                d.vx = -d.vx * 0.6;
                 d.x -= DT * DT * (R + w.r + dx) * 500;
             } else if (dy > 0 && dy > fdx && dvy < 0) {
                 //printf("cw3\n");
-                d.vy = -d.vy * 0.95;
+                d.vy = -d.vy * 0.6;
                 d.vy -= G * DT; // hack to make the drops not fall through walls
                 d.y += DT * DT * (R + w.r - dy) * 500;
             } else if (dy < 0 && -dy > fdx && dvy > 0) {
                 //printf("cw4\n");
-                d.vy = -d.vy;
+                d.vy = -d.vy * 0.6;
                 d.vy -= G * DT; // hack to make the drops not fall through walls
                 d.y -= DT * DT * (R + w.r + dy) * 500;
             } else {
@@ -170,15 +171,19 @@ void tick() {
 
             //printf("(%f %f) (%f %f)\n", d.x, d.y, d2.x, d2.y);
 
-#define RIGIDITY (80 / R)
-#define TENSION 0.00001
-#define FRICTION 0.2
+//#define RIGIDITY (1 / R / R / R / R)
+#define RIGIDITY (10 / R / R)
+#define RX 0.02f
+#define TENSION 0.0005
+#define FRICTION 0.01
 
             float dvx, dvy;
             if (dsq < 4 * R * R) {
                 float mag = 4 * R * R - dsq;
-                dvx = (d.x - d2.x) * mag * RIGIDITY;
-                dvy = (d.y - d2.y) * mag * RIGIDITY;
+                //mag = mag * mag * RIGIDITY + RX;
+                mag = mag * RIGIDITY + RX;
+                dvx = (d.x - d2.x) * mag;
+                dvy = (d.y - d2.y) * mag;
             } else {
                 //float mag = 4 * R * R - dsq;
                 float mag = -1.0 / dsq;
@@ -268,17 +273,17 @@ int main(int argc, char** argv) {
     //drops.push_back(Drop({.x = 0, .y = 0 }));
     //drops.push_back(Drop({.x = 0.2, .y = 0 }));
     int nx = 32;
-    int ny = 52;
+    int ny = 22;
     for (int j = 0; j < ny; j++) {
         for (int i = 0; i < nx; i++) {
-            drops.push_back(Drop({.x = 1.0f / nx * (i - nx / 2) - 0.6f, .y = 0.5f + .01f * i + 1.0f / ny * j, .vx = 1.5f + 0.2f / nx * (i - nx / 2), .vy = -0.3 }));
+            drops.push_back(Drop({.x = R * 2.5f * i - 0.6f, .y = 0.2f + R * 2.5f * j, .vx = 1.5f, .vy = -0.8 }));
         }
     }
     //drops.push_back(Drop({.x = 0.08, .y = 1 }));
 #endif
 
     static const float W = 1.5f;
-    walls.push_back(Wall({.x = .6f, .y = -0.3, .r = 0.2}));
+    walls.push_back(Wall({.x = .6f, .y = -0.2, .r = 0.3}));
     for (float x = -W; x <= W + 0.001; x += 0.25) {
         walls.push_back(Wall({.x = x, .y = -1, .r = 0.25 }));
     }
