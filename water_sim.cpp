@@ -19,13 +19,13 @@ std::list<Drop> drops;
 std::list<Wall> walls;
 
 #define R 0.02f // radius
-#define DT 0.01 // tick increment per frame
+#define DT 0.03 // tick increment per frame
 #define FR 60   // framerate
 #define G -1    // gravity strength (& direction)
 
 void drawCircle(float x, float y, float r) {
-    glBegin(GL_LINE_LOOP);
-    //glBegin(GL_POLYGON);
+    //glBegin(GL_LINE_LOOP);
+    glBegin(GL_POLYGON);
     for (int i = 0; i < 12; i++) {
         float theta = 2 * 3.14159265 * i / 12;
         glVertex2f(x + r * cosf(theta), y + r * sinf(theta));
@@ -172,9 +172,9 @@ void tick() {
             //printf("(%f %f) (%f %f)\n", d.x, d.y, d2.x, d2.y);
 
 //#define RIGIDITY (1 / R / R / R / R)
-#define RIGIDITY (10 / R / R)
-#define RX 0.02f
-#define TENSION 0.0005
+#define RIGIDITY (2 / R / R)
+#define RX 0.1f
+#define TENSION 0.00005
 #define FRICTION 0.01
 
             float dvx, dvy;
@@ -272,11 +272,11 @@ int main(int argc, char** argv) {
 #else
     //drops.push_back(Drop({.x = 0, .y = 0 }));
     //drops.push_back(Drop({.x = 0.2, .y = 0 }));
-    int nx = 32;
-    int ny = 22;
+    int nx = 42;
+    int ny = 42;
     for (int j = 0; j < ny; j++) {
         for (int i = 0; i < nx; i++) {
-            drops.push_back(Drop({.x = R * 2.5f * i - 0.6f, .y = 0.2f + R * 2.5f * j, .vx = 1.5f, .vy = -0.8 }));
+            drops.push_back(Drop({.x = R * 2.01f * i - 1.2f, .y = 0.2f + R * 2.01f * j, .vx = 1.5f, .vy = -0.8 }));
         }
     }
     //drops.push_back(Drop({.x = 0.08, .y = 1 }));
